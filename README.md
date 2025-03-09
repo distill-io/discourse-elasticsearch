@@ -16,7 +16,7 @@ hooks:
         cd: $home/plugins
         cmd:
           - mkdir -p plugins
-          - git clone https://github.com/imMMX/discourse-elasticsearch.git
+          - git clone https://github.com/distill-io/discourse-elasticsearch.git
 ```
           
 
