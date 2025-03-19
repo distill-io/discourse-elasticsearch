@@ -158,7 +158,7 @@ module DiscourseElasticsearch
         objectID: tag.id,
         url: "/tags/#{tag.name}",
         name: tag.name,
-        topic_count: tag.topic_count
+        topic_count: tag.public_topic_count
       }
     end
 
@@ -172,7 +172,7 @@ module DiscourseElasticsearch
     end
 
     def self.should_index_tag?(tag)
-      tag.topic_count > 0
+      tag.public_topic_count > 0
     end
 
     def self.add_elasticsearch_users(index_name, record, user_id)
