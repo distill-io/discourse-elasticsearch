@@ -1,5 +1,12 @@
 # discourse-elasticsearch
 
+## Distill changes
+This repo was forked from https://github.com/m2nx/discourse-elasticsearch. 
+### Differences from the original repository:
+* Added support for the latest Discourse version.
+* Add support for apiToken authentication support for Elasticsearch.
+
+
 discourse-elasticsearch is a plugin for elasticsearch forked from [discourse-algolia](https://github.com/discourse/discourse-algolia)
 
 ## Installation
