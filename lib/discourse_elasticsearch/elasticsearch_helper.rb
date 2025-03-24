@@ -1,7 +1,6 @@
-require 'elasticsearch'
+require "elasticsearch"
 module DiscourseElasticsearch
   class ElasticsearchHelper
-
     USERS_INDEX = "discourse-users".freeze
     POSTS_INDEX = "discourse-posts".freeze
     TAGS_INDEX = "discourse-tags".freeze
@@ -11,7 +10,7 @@ module DiscourseElasticsearch
     WORDINESS_THRESHOLD = 5
 
     # detect salutations to avoid indexing with these common words
-    SKIP_WORDS = ['thanks']
+    SKIP_WORDS = ["thanks"]
 
     def self.index_user(user_id, discourse_event)
       user = User.find_by(id: user_id)
@@ -39,7 +38,7 @@ module DiscourseElasticsearch
         time_read: user.user_stat.time_read,
         created_at: user.created_at.to_i,
         updated_at: user.updated_at.to_i,
-        last_seen_at: user.last_seen_at
+        last_seen_at: user.last_seen_at,
       }
     end
 
@@ -47,37 +46,40 @@ module DiscourseElasticsearch
     end
 
     def self.index_post(post_id, discourse_event)
-      post = Post.find_by(id: post_id)
+      post = Post.with_deleted.find_by(id: post_id)
+      post.topic = Post.with_deleted.find_by(id: post.topic_id) if post.topic_id
       if should_index_post?(post)
-        post_records = to_post_records(post)
-        add_elasticsearch_posts(POSTS_INDEX, post_records)
+        begin
+          post_records = to_post_records(post)
+          add_elasticsearch_posts(POSTS_INDEX, post_records)
+        rescue => exception
+          puts exception.backtrace
+        end
       end
     end
 
     def self.should_index_post?(post)
-      return false if post.blank? || post.post_type != Post.types[:regular] || !guardian.can_see?(post)
+      if post.blank? || post.post_type != Post.types[:regular] || !guardian.can_see?(post)
+        return false
+      end
       topic = post.topic
       return false if topic.blank? || topic.archetype == Archetype.private_message
       true
     end
 
     def self.to_post_records(post)
-
       post_records = []
 
-      doc = Nokogiri::HTML(post.cooked)
+      doc = Nokogiri.HTML(post.cooked)
       parts = doc.text.split(/\n/)
 
-      parts.reject! do |content|
-        content.strip.empty?
-      end
+      parts.reject! { |content| content.strip.empty? }
 
       # for debugging, print the skips after the loop
       # to see what was excluded from indexing
       skips = []
 
       parts.each_with_index do |content, index|
-
         # skip anything without any alpha characters
         # commonly formatted code lines with only symbols
         unless content =~ /\w/
@@ -88,9 +90,7 @@ module DiscourseElasticsearch
         words = content.split(/\s+/)
 
         # don't index short lines that are probably saluations
-        words.map! do |word|
-          word.downcase.gsub(/[^0-9a-z]/i, '')
-        end
+        words.map! { |word| word.downcase.gsub(/[^0-9a-z]/i, "") }
         if words.length <= WORDINESS_THRESHOLD && (SKIP_WORDS & words).length > 0
           skips.push(content)
           next
@@ -110,7 +110,7 @@ module DiscourseElasticsearch
           word_count: words.length,
           is_wordy: words.length >= WORDINESS_THRESHOLD,
           content: content[0..8000],
-          deleted_at: post.deleted_at.to_i
+          deleted_at: post.deleted_at.to_i,
         }
 
         user = post.user
@@ -119,7 +119,7 @@ module DiscourseElasticsearch
           url: "/users/#{user.username}",
           name: user.name,
           username: user.username,
-          avatar_template: user.avatar_template
+          avatar_template: user.avatar_template,
         }
 
         topic = post.topic
@@ -132,7 +132,7 @@ module DiscourseElasticsearch
             views: topic.views,
             slug: topic.slug,
             like_count: topic.like_count,
-            tags: topic.tags.map(&:name)
+            tags: topic.tags.map(&:name),
           }
 
           category = topic.category
@@ -142,7 +142,7 @@ module DiscourseElasticsearch
               url: "/c/#{category.slug}",
               name: category.name,
               color: category.color,
-              slug: category.slug
+              slug: category.slug,
             }
           end
         end
@@ -151,7 +151,6 @@ module DiscourseElasticsearch
       end
 
       post_records
-
     end
 
     def self.to_tag_record(tag)
@@ -159,7 +158,7 @@ module DiscourseElasticsearch
         objectID: tag.id,
         url: "/tags/#{tag.name}",
         name: tag.name,
-        topic_count: tag.public_topic_count
+        topic_count: tag.public_topic_count,
       }
     end
 
@@ -183,25 +182,23 @@ module DiscourseElasticsearch
 
     def self.add_elasticsearch_posts(index_name, posts)
       client = elasticsearch_index
-      posts.each do |post|
-        client.index index: index_name, body: post
-      end
+      posts.each { |post| client.index index: index_name, id: post[:objectId], body: post }
     end
 
     def self.add_elasticsearch_tags(index_name, tags)
       client = elasticsearch_index
-      tags.each do |tag|
-        client.index index: index_name, body: tag
-      end
+      tags.each { |tag| client.index index: index_name, id: tag[:objectId], body: tag }
     end
 
     def self.elasticsearch_index
       server_ip = SiteSetting.elasticsearch_server_ip
       server_port = SiteSetting.elasticsearch_server_port
-      client = Elasticsearch::Client.new(
-        url: "#{server_ip}:#{server_port}", log: true,
-        api_key: SiteSetting.elasticsearch_discourse_apiKey
-      )
+      client =
+        Elasticsearch::Client.new(
+          url: "#{server_ip}:#{server_port}",
+          log: true,
+          api_key: SiteSetting.elasticsearch_discourse_apiKey,
+        )
       client
     end
 
@@ -216,39 +213,67 @@ module DiscourseElasticsearch
 
     def self.create_mapping
       client = elasticsearch_index
-      client.indices.create index: 'discourse-users',
+      client.indices.create index: "discourse-users",
                             body: {
                               mappings: {
                                 properties: {
-                                  name: { type: 'text', analyzer: 'standard', search_analyzer: "standard" },
-                                  url: { type: 'text', analyzer: 'standard', search_analyzer: "standard" },
-                                  username: { type: 'text', analyzer: 'standard', search_analyzer: "standard" }
-                                  }
-                              }
+                                  name: {
+                                    type: "text",
+                                    analyzer: "standard",
+                                    search_analyzer: "standard",
+                                  },
+                                  url: {
+                                    type: "text",
+                                    analyzer: "standard",
+                                    search_analyzer: "standard",
+                                  },
+                                  username: {
+                                    type: "text",
+                                    analyzer: "standard",
+                                    search_analyzer: "standard",
+                                  },
+                                },
+                              },
                             }
 
-      client.indices.create index: 'discourse-posts',
+      client.indices.create index: "discourse-posts",
                             body: {
                               mappings: {
                                 properties: {
                                   topic: {
                                     properties: {
-                                      title: { type: 'text', analyzer: 'standard', search_analyzer: "standard" }
-                                    }
+                                      title: {
+                                        type: "text",
+                                        analyzer: "standard",
+                                        search_analyzer: "standard",
+                                      },
+                                    },
                                   },
-                                  content: { type: 'text', analyzer: 'standard', search_analyzer: "standard" }
-                                }
-                              }
+                                  content: {
+                                    type: "text",
+                                    analyzer: "standard",
+                                    search_analyzer: "standard",
+                                  },
+                                },
+                              },
                             }
 
-      client.indices.create index: 'discourse-tags',
+      client.indices.create index: "discourse-tags",
                             body: {
                               mappings: {
                                 properties: {
-                                  name: { type: 'text', analyzer: 'standard', search_analyzer: "standard" },
-                                  url: { type: 'text', analyzer: 'standard', search_analyzer: "standard" }
-                                }
-                              }
+                                  name: {
+                                    type: "text",
+                                    analyzer: "standard",
+                                    search_analyzer: "standard",
+                                  },
+                                  url: {
+                                    type: "text",
+                                    analyzer: "standard",
+                                    search_analyzer: "standard",
+                                  },
+                                },
+                              },
                             }
     end
 
