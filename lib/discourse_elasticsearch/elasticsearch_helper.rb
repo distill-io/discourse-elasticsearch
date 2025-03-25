@@ -132,7 +132,7 @@ module DiscourseElasticsearch
           word_count: words.length,
           is_wordy: words.length >= WORDINESS_THRESHOLD,
           content: content[0..8000],
-          deleted_at: post.deleted_at.to_i,
+          deleted_at: post.deleted_at,
         }
 
         user = post.user
