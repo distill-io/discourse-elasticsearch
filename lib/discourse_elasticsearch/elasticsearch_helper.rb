@@ -205,7 +205,8 @@ module DiscourseElasticsearch
 
     def self.add_elasticsearch_posts(index_name, posts)
       client = elasticsearch_index
-      posts.each { |post| client.index index: index_name, id: post[:objectId], body: post }
+      bulk_payload  = posts.map {|post| { index:  { _index: index_name, _id: post[:objectID], data: post } } }
+      client.bulk(body: bulk_payload)
     end
 
     def self.add_elasticsearch_tags(index_name, tags)

@@ -72,14 +72,13 @@ def elasticsearch_reindex_posts
   puts "[Starting] Pushing posts to Elasticsearch"
   total_records = 0
   
-  Post.all.includes(:user, :topic).find_each(batch_size: 100) do |batch_posts|
-    post_records = []
-    
-    if DiscourseElasticsearch::ElasticsearchHelper.should_index_post?(batch_posts)
-      post_records << DiscourseElasticsearch::ElasticsearchHelper.to_post_records(batch_posts)
-    end
-    
-    post_records.flatten!
+  # Use find_in_batches to get 100 records at a time
+  Post.all.includes(:user, :topic).find_in_batches(batch_size: 100) do |batch_posts|
+    post_records = batch_posts.map do |post|
+      if DiscourseElasticsearch::ElasticsearchHelper.should_index_post?(post)
+        DiscourseElasticsearch::ElasticsearchHelper.to_post_records(post)
+      end
+    end.compact.flatten
     
     if post_records.any?
       DiscourseElasticsearch::ElasticsearchHelper.add_elasticsearch_posts(
