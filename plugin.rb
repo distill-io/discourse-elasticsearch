@@ -30,10 +30,7 @@ after_initialize do
     end
   end
 
-  require_dependency File.expand_path("app/jobs/regular/update_elasticsearch_post.rb", __dir__)
-  require_dependency File.expand_path("app/jobs/regular/update_elasticsearch_user.rb", __dir__)
-  require_dependency File.expand_path("app/jobs/regular/update_elasticsearch_topic.rb", __dir__)
-  require_dependency File.expand_path("app/jobs/regular/update_elasticsearch_tag.rb", __dir__)
+  require_dependency File.expand_path("app/jobs/regular/elasticsearch_jobs.rb", __dir__)
   require_dependency "discourse_event"
 
   require_dependency "application_controller"

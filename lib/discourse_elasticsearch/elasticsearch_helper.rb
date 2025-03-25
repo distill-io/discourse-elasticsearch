@@ -43,18 +43,40 @@ module DiscourseElasticsearch
     end
 
     def self.index_topic(topic_id, discourse_event)
+      begin
+        posts = Post.with_deleted.where(topic_id: topic_id)
+        posts.each do |post|
+          index_post(post.id, discourse_event)
+        end
+      rescue => exception
+        puts exception.backtrace
+        puts "LOG #{exception.message}"
+      end
+    end
+
+    # Delete existing post.
+    def self.delete_posts(post_id)
+      client = elasticsearch_index
+      client.delete_by_query index: POSTS_INDEX,
+        body: {
+          query: {
+            term: {
+              post_id: post_id
+            }
+          }
+        }
     end
 
     def self.index_post(post_id, discourse_event)
+
       post = Post.with_deleted.find_by(id: post_id)
-      post.topic = Post.with_deleted.find_by(id: post.topic_id) if post.topic_id
+      post.topic = Topic.with_deleted.find_by(id: post.topic_id) if post.topic_id
+
       if should_index_post?(post)
-        begin
-          post_records = to_post_records(post)
-          add_elasticsearch_posts(POSTS_INDEX, post_records)
-        rescue => exception
-          puts exception.backtrace
-        end
+        delete_posts(post.id)
+        post_records = to_post_records(post)
+        add_elasticsearch_posts(POSTS_INDEX, post_records)
+        puts "Added posts"
       end
     end
 
@@ -133,6 +155,7 @@ module DiscourseElasticsearch
             slug: topic.slug,
             like_count: topic.like_count,
             tags: topic.tags.map(&:name),
+            deleted_at: topic.deleted_at
           }
 
           category = topic.category
