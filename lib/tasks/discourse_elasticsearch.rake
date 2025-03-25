@@ -70,20 +70,26 @@ end
 
 def elasticsearch_reindex_posts
   puts "[Starting] Pushing posts to Elasticsearch"
-  post_records = []
-  Post.all.includes(:user, :topic).each do |post|
-    if DiscourseElasticsearch::ElasticsearchHelper.should_index_post?(post)
-      post_records << DiscourseElasticsearch::ElasticsearchHelper.to_post_records(post)
+  total_records = 0
+  
+  Post.all.includes(:user, :topic).find_each(batch_size: 100) do |batch_posts|
+    post_records = []
+    
+    if DiscourseElasticsearch::ElasticsearchHelper.should_index_post?(batch_posts)
+      post_records << DiscourseElasticsearch::ElasticsearchHelper.to_post_records(batch_posts)
+    end
+    
+    post_records.flatten!
+    
+    if post_records.any?
+      DiscourseElasticsearch::ElasticsearchHelper.add_elasticsearch_posts(
+        DiscourseElasticsearch::ElasticsearchHelper::POSTS_INDEX, post_records)
+      total_records += post_records.length
+      puts "[Progress] Pushed #{post_records.length} post records to Elasticsearch" 
     end
   end
-  post_records.flatten!
-  puts "[Progress] Gathered posts from Discourse"
-  post_records.each_slice(100) do |slice|
-    DiscourseElasticsearch::ElasticsearchHelper.add_elasticsearch_posts(
-      DiscourseElasticsearch::ElasticsearchHelper::POSTS_INDEX, slice.flatten)
-    puts "[Progress] Pushed #{slice.length} post records to Elasticsearch"
-  end
-  puts "[Finished] Successfully pushed #{post_records.length} posts to Elasticsearch"
+
+  puts "[Finished] Successfully pushed #{total_records} posts to Elasticsearch"
 end
 
 
