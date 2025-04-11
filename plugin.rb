@@ -63,42 +63,87 @@ after_initialize do
     end
   end
 
-  %i[topic_created topic_edited topic_destroyed topic_recovered].each do |discourse_event|
-    DiscourseEvent.on(discourse_event) do |topic|
-      if SiteSetting.elasticsearch_enabled?
-        Jobs.enqueue_in(
-          0,
-          :update_elasticsearch_topic,
-          topic_id: topic.id,
-          discourse_event: discourse_event,
-        )
-        Jobs.enqueue_in(
-          0,
-          :update_elasticsearch_tag,
-          tags: topic.tags.map(&:name),
-          discourse_event: discourse_event,
-        )
-      end
+
+=begin
+  Note: When a topic is updated, all its posts are reindexed. 
+
+  Posts are reindxed when: 
+  * Post is created -> post_created
+  * Post is edited. -> post_edited && !is_first_post
+  * Post is destroyed -> post_destroyed && !is_first_post
+  * Post is recovered -> post_recovered && !is_first_post
+
+  Topics are reindexed when: 
+  * Topic is edited -> post_edited && is_first_post && topic_changed
+  * Topic is destroyed -> post_desroyed && is_first_post
+  * Topic is recovered -> post_recovered && is_first_post
+
+  * Topic : make personal message -> post_edited + topic_changed
+  * Topic : make public(from personal) -> post_edited + topic_changed
+
+  * Topic: list -> post_created && post.action_code == visible.enabled
+  * Topic: unlist -> post_created && post.action_code == visible.disabled
+=end
+
+  # %i[
+  #   topic_destroyed
+  #   topic_recovered
+  #   topic_published
+  #   topic_created
+  #   post_moved
+  #   post_created
+  #   post_edited
+  #   post_recovered
+  #   post_destroyed
+  # ].each do |discourse_event|
+  #   on(discourse_event) do |topic|
+  #     print("Got Event #{discourse_event} #{topic.id}  \n")
+  #     puts
+  #   end
+  # end
+
+  on(:post_created) do |post|
+    if post.action_code == "visible.enabled" || post.action_code == "visible.disabled" 
+      Jobs.enqueue_in(0, :update_elasticsearch_topic, topic_id: post.topic_id, discourse_event: :post_created)
+    else
+      Jobs.enqueue_in(0, :update_elasticsearch_post, post_id: post.id, discourse_event: :post_created)
     end
   end
 
-  %i[post_created post_edited post_destroyed post_recovered].each do |discourse_event|
-    DiscourseEvent.on(discourse_event) do |post|
-      if SiteSetting.elasticsearch_enabled?
+  on(:post_edited) do |post, topic_changed|
+    if post.post_number == 1 && topic_changed
+      Jobs.enqueue_in(
+        0,
+        :update_elasticsearch_topic,
+        topic_id: post.topic_id,
+        discourse_event: :post_edited,
+      )
+    else
+      Jobs.enqueue_in(
+        0,
+        :update_elasticsearch_post,
+        post_id: post.id,
+        discourse_event: :post_edited,
+      )
+    end
+  end
+
+  %i[post_destroyed post_recovered].each do |discourse_event|
+    on(discourse_event) do |post|
+      if post.post_number == 1
+        Jobs.enqueue_in(
+          0,
+          :update_elasticsearch_topic,
+          topic_id: post.topic_id,
+          discourse_event: discourse_event,
+        )
+      else
         Jobs.enqueue_in(
           0,
           :update_elasticsearch_post,
           post_id: post.id,
           discourse_event: discourse_event,
         )
-        if post.topic
-          Jobs.enqueue_in(
-            0,
-            :update_elasticsearch_tag,
-            tags: post.topic.tags.map(&:name),
-            discourse_event: discourse_event,
-          )
-        end
       end
     end
   end
