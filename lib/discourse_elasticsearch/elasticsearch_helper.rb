@@ -71,11 +71,9 @@ module DiscourseElasticsearch
     end
 
     def self.should_index_post?(post)
-      if post.blank? || post.post_type != Post.types[:regular] || !guardian.can_see?(post)
+      if post.blank? || post.post_type != Post.types[:regular] || post.topic.blank?
         return false
       end
-      topic = post.topic
-      return false if topic.blank? || topic.archetype == Archetype.private_message
       true
     end
 
