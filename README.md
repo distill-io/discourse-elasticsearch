@@ -6,8 +6,17 @@ This repo was forked from https://github.com/m2nx/discourse-elasticsearch.
 * Added support for the latest Discourse version.
 * Add support for apiToken authentication support for Elasticsearch.
 
+discourse-elasticsearch is a plugin for elasticsearch forked from
+[discourse-algolia](https://github.com/discourse/discourse-algolia)
 
-discourse-elasticsearch is a plugin for elasticsearch forked from [discourse-algolia](https://github.com/discourse/discourse-algolia)
+Note: In the event of Elasticsearch becoming unavailable, any updates made to
+posts in Discourse during that downtime will not be received. As a result, it
+will be necessary to reindex all posts once Elasticsearch is back online to
+ensure data consistency."
+``` sh 
+LOAD_PLUGINS=1 bundle exec rails elasticsearch:configure # remove existing index.
+LOAD_PLUGINS=1 bundle exec rails elasticsearch:configure # remove existing index.
+```
 
 ## Installation
 
