@@ -121,6 +121,7 @@ module DiscourseElasticsearch
           is_wordy: words.length >= WORDINESS_THRESHOLD,
           content: content[0..8000],
           deleted_at: post.deleted_at,
+          collapse_field: post.topic.id,
         }
 
         user = post.user
@@ -269,6 +270,9 @@ module DiscourseElasticsearch
                                     analyzer: "standard",
                                     search_analyzer: "standard",
                                   },
+                                  collapse_field: {
+                                    type: "keyword",
+                                  }
                                 },
                               },
                             }
