@@ -121,6 +121,7 @@ module DiscourseElasticsearch
           is_wordy: words.length >= WORDINESS_THRESHOLD,
           content: content[0..8000],
           deleted_at: post.deleted_at,
+          collapse_results_id: post.topic.id, # field to collapse search results by. when querying. 
         }
 
         user = post.user
@@ -159,6 +160,12 @@ module DiscourseElasticsearch
             }
           end
         end
+
+        # Redundant field to make it easier to query from elasticsearch.
+        record[:visible] = record[:topic][:visible] == true &&
+          record[:topic][:deleted_at].nil?  &&
+          record[:deleted_at].nil? &&
+          record[:topic][:archetype] == "regular"
 
         post_records << record
       end
@@ -269,6 +276,9 @@ module DiscourseElasticsearch
                                     analyzer: "standard",
                                     search_analyzer: "standard",
                                   },
+                                  collapse_results_id: {
+                                    type: "keyword",
+                                  }
                                 },
                               },
                             }
