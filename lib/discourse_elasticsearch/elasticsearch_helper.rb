@@ -260,21 +260,38 @@ module DiscourseElasticsearch
 
       client.indices.create index: "discourse-posts",
                             body: {
+                              settings: {
+                                analysis: {
+                                  filter: {
+                                    english_stemmer: {
+                                      type: "stemmer",
+                                      language: "english"
+                                    }
+                                  },
+                                  analyzer: {
+                                    stemmed_analyzer: {
+                                      type: "custom",
+                                      tokenizer: "standard",
+                                      filter: ["lowercase", "english_stemmer"]
+                                    }
+                                  }
+                                }
+                              },
                               mappings: {
                                 properties: {
                                   topic: {
                                     properties: {
                                       title: {
                                         type: "text",
-                                        analyzer: "standard",
-                                        search_analyzer: "standard",
+                                        analyzer: "stemmed_analyzer",
+                                        search_analyzer: "stemmed_analyzer"
                                       },
                                     },
                                   },
                                   content: {
                                     type: "text",
-                                    analyzer: "standard",
-                                    search_analyzer: "standard",
+                                    analyzer: "stemmed_analyzer",
+                                    search_analyzer: "stemmed_analyzer"
                                   },
                                   collapse_results_id: {
                                     type: "keyword",
