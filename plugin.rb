@@ -12,6 +12,7 @@ gem "elasticsearch", "8.4.0"
 register_asset "stylesheets/variables.scss"
 register_asset "stylesheets/elasticsearch-base.scss"
 register_asset "stylesheets/elasticsearch-layout.scss"
+register_asset "stylesheets/admin-elasticsearch.scss", :admin
 register_asset "lib/typehead.bundle.js"
 
 enabled_site_setting :elasticsearch_enabled
@@ -44,10 +45,36 @@ after_initialize do
     end
   end
 
-  DiscourseElasticsearch::Engine.routes.draw { get "/list" => "actions#list" }
+  require_dependency "admin/admin_controller"
+  class DiscourseElasticsearch::AdminController < ::Admin::AdminController
+    requires_plugin PLUGIN_NAME
+
+    def reindex
+      unless SiteSetting.elasticsearch_enabled?
+        return render json: { errors: ["Elasticsearch is not enabled"] }, status: 422
+      end
+
+      begin
+        Jobs.enqueue(:reindex_all_posts_to_elasticsearch)
+        render json: success_json.merge(message: "Reindexing job has been queued successfully")
+      rescue => e
+        Rails.logger.error("Failed to enqueue reindex job: #{e.message}")
+        render json: { errors: ["Failed to start reindex job: #{e.message}"] }, status: 500
+      end
+    end
+  end
+
+  DiscourseElasticsearch::Engine.routes.draw do
+    get "/list" => "actions#list"
+    post "/admin/reindex" => "admin#reindex", constraints: StaffConstraint.new
+  end
+
+  # Add admin route
+  add_admin_route 'discourse_elasticsearch.admin.title', 'discourse-elasticsearch'
 
   Discourse::Application.routes.append do
     mount ::DiscourseElasticsearch::Engine, at: "/discourse-elasticsearch"
+    get '/admin/plugins/discourse-elasticsearch' => 'admin/plugins#index', constraints: StaffConstraint.new
   end
 
   %i[user_created user_updated].each do |discourse_event|

@@ -1,0 +1,53 @@
+.admin-elasticsearch {
+  margin: 20px;
+
+  h2 {
+    margin-bottom: 20px;
+  }
+
+  .admin-elasticsearch-section {
+    background: var(--primary-very-low);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+
+    h3 {
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin-bottom: 20px;
+      color: var(--primary-medium);
+    }
+  }
+
+  .reindex-status {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    .spinner {
+      margin-right: 10px;
+    }
+  }
+
+  .alert {
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 4px;
+
+    &.alert-success {
+      background-color: var(--success-low);
+      color: var(--success);
+    }
+
+    &.alert-error {
+      background-color: var(--danger-low);
+      color: var(--danger);
+    }
+  }
+
+  .buttons {
+    margin-top: 20px;
+  }
+}

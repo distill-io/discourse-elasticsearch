@@ -1,0 +1,10 @@
+en:
+  js:
+    discourse_elasticsearch:
+      admin:
+        title: "Elasticsearch"
+        reindex_section: "Reindex Operations"
+        reindex_description: "Reindex all posts to Elasticsearch. This operation runs in the background and may take some time depending on the number of posts."
+        reindex_posts: "Start Reindex Job"
+        reindex_complete: "Reindex job started successfully! Check the logs for progress."
+        reindex_error: "Error during reindexing:"
