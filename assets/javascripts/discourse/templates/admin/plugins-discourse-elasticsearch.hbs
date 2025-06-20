@@ -1,0 +1,29 @@
+<div class="admin-elasticsearch">
+  <h2>{{i18n "discourse_elasticsearch.admin.title"}}</h2>
+  
+  <div class="admin-elasticsearch-section">
+    <h3>{{i18n "discourse_elasticsearch.admin.reindex_section"}}</h3>
+    <p>{{i18n "discourse_elasticsearch.admin.reindex_description"}}</p>
+    
+    {{#if this.reindexComplete}}
+      <div class="alert alert-success">
+        {{i18n "discourse_elasticsearch.admin.reindex_complete"}}
+      </div>
+    {{/if}}
+    
+    {{#if this.reindexError}}
+      <div class="alert alert-error">
+        {{i18n "discourse_elasticsearch.admin.reindex_error"}} {{this.reindexError}}
+      </div>
+    {{/if}}
+    
+    <div class="buttons">
+      <DButton
+        @label="discourse_elasticsearch.admin.reindex_posts"
+        @action={{action "reindexPosts"}}
+        @icon="sync"
+        @class="btn-primary"
+      />
+    </div>
+  </div>
+</div>
